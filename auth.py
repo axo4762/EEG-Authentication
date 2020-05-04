@@ -41,62 +41,71 @@ def get_eeg_data(subject, runs, event_id):
     return raw.info['sfreq'], epochs_data, labels
 
 
-def main():
-    # Retrieve data for subjects
-    event_id_1 = dict(T0=1, T1=1, T2=1)
-    event_id_2 = dict(T0=2, T1=2, T2=2)
-    sfreq_train_1, data_train_1, labels_train_1 = get_eeg_data(1, [6,10], event_id_1)
-    sfreq_1, data_1, labels_1 = get_eeg_data(1, 14, event_id_1)
-    sfreq_train_2, data_train_2, labels_train_2 = get_eeg_data(2, [6,10], event_id_2)
-    sfreq_2, data_2, labels_2 = get_eeg_data(2, 14, event_id_2)
+def train(subjects, runs):
+    sfreq = 0
+    data = []
+    labels = []
 
-    # Combine training data
-    data_train = np.concatenate((data_train_1, data_train_2))
-    labels_train = np.concatenate((labels_train_1, labels_train_2))
+    # Get all the data
+    for subject in subjects:
+        print(subject)
+        event_id = dict(T0=subject, T1=subject, T2=subject)
+
+        sfreq_subj, data_subj, labels_subj = get_eeg_data(subject, runs, event_id)
+        sfreq += sfreq_subj
+        data.append(data_subj)
+        labels.append(labels_subj)
+
+    sfreq /= len(subjects)
+
+    data = np.concatenate(tuple(data))
+    labels = np.concatenate(labels)
 
     lda = LinearDiscriminantAnalysis()
     csp = CSP(n_components=4, reg=None, log=True, norm_trace=False)
     clf = Pipeline([('CSP', csp), ('LDA', lda)])
 
-    csp.fit_transform(data_train, labels_train)
+    csp.fit_transform(data, labels)
 
     cv = ShuffleSplit(10, test_size=0.2, random_state=None)
-    cv_split = cv.split(data_train)
+    split = cv.split(data)
 
-    w_length = int(sfreq_train_1 * 0.5)
-    w_step = int(sfreq_train_1 * 0.1)
-    w_start = np.arange(0, data_train.shape[2] - w_length, w_step)
+    w_length = int(sfreq * 0.5)
+    w_step = int(sfreq * 0.1)
+    w_start = np.arange(0, data.shape[2] - w_length, w_step)
 
     scores_windows = []
 
-    for train_idx, test_idx in cv_split:
-        y_train, y_test = labels_train[train_idx], labels_train[test_idx]
+    for train_idx, test_idx in split:
+        y_train, y_test = labels[train_idx], labels[test_idx]
 
-        X_train = csp.fit_transform(data_train[train_idx], y_train)
-        X_test = csp.transform(data_train[test_idx])
+        X_train = csp.fit_transform(data[train_idx], y_train)
+        X_test = csp.transform(data[test_idx])
 
         lda.fit(X_train, y_train)
 
         score_this_window = []
         for n in w_start:
-            X_test = csp.transform(data_train[test_idx][:, :, n:(n + w_length)])
+            X_test = csp.transform(data[test_idx][:, :, n:(n + w_length)])
             score_this_window.append(lda.score(X_test, y_test))
         scores_windows.append(score_this_window)
 
-    w_times = (w_start + w_length / 2.0) / sfreq_train_1
+    w_times = (w_start + w_length / 2.0) / sfreq
 
-#    plt.figure()
-#    plt.plot(w_times, np.mean(scores_windows, 0), label='Score')
-#    plt.axvline(0, linestyle='--', color='k', label='Onset')
-#    plt.axhline(0.5, linestyle='-', color='k', label='Chance')
-#    plt.xlabel('time (s)')
-#    plt.ylabel('classification accuracy')
-#    plt.legend(loc='lower right')
-#    plt.show()
+    plt.figure()
+    plt.plot(w_times, np.mean(scores_windows, 0), label='Score')
+    plt.axvline(0, linestyle='--', color='k')
+    plt.axhline(0.5, linestyle='-', color='k', label='Chance')
+    plt.xlabel('time (s)')
+    plt.ylabel('classification accuracy')
+    plt.legend(loc='lower right')
+    plt.show()
 
-    X = csp.transform(data_1)
-    test = lda.predict(X)
-    print(test)
+
+def main():
+
+    subjects = list(range(1, 21))
+    train(subjects, [6, 10])
 
 
 if __name__ == '__main__':
