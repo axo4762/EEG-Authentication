@@ -92,20 +92,28 @@ def train(subjects, runs):
 
     w_times = (w_start + w_length / 2.0) / sfreq
 
-    plt.figure()
-    plt.plot(w_times, np.mean(scores_windows, 0), label='Score')
-    plt.axvline(0, linestyle='--', color='k')
-    plt.axhline(0.5, linestyle='-', color='k', label='Chance')
-    plt.xlabel('time (s)')
-    plt.ylabel('classification accuracy')
-    plt.legend(loc='lower right')
-    plt.show()
+#    plt.figure()
+#    plt.plot(w_times, np.mean(scores_windows, 0), label='Score')
+#    plt.axvline(0, linestyle='--', color='k')
+#    plt.axhline(0.5, linestyle='-', color='k', label='Chance')
+#    plt.xlabel('time (s)')
+#    plt.ylabel('classification accuracy')
+#    plt.legend(loc='lower right')
+#    plt.show()
+
+    return csp, lda
 
 
 def main():
 
     subjects = list(range(1, 21))
-    train(subjects, [6, 10])
+    csp, lda = train(subjects, [6, 10])
+
+    _, data, _= get_eeg_data(5, 14, dict(T0=5, T1=5, T2=5))
+
+    X = csp.transform(data)
+    labels = lda.predict(X)
+    print(labels)
 
 
 if __name__ == '__main__':
