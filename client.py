@@ -42,9 +42,9 @@ def main():
     else:
         sock_path = os.getenv('SOCK_PATH')
 
-    user_id = input('Enter user ID for authentication: ')
+    user = input('Enter user ID for authentication: ')
 
-    user_data = get_data(int(user_id))
+    # data = get_data(int(user))
 
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
@@ -55,7 +55,9 @@ def main():
         sys.exit(1)
 
     try:
-        sock.sendall(bytes(user_id, 'utf-8'))
+        sock.sendall(bytes(user, 'utf-8'))
+        msg = sock.recv(4096)
+        print(msg.decode('utf-8'))
     finally:
         sock.close()
 

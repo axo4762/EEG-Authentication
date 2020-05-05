@@ -107,4 +107,4 @@ class Authenticator:
         X = self.csp.transform(data)
         labels = self.lda.predict(X)
 
-        print(labels)
+        return labels

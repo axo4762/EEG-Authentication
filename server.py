@@ -6,8 +6,13 @@ import os
 import atexit
 import logging
 import pickle
+import numpy as np
 
 from authenticator import Authenticator
+
+
+TRAIN_RUNS = [6, 10]
+AUTH_RUNS  = [14]
 
 
 def train_model(auth):
@@ -21,15 +26,36 @@ def train_model(auth):
     '''
 
     subjects = list(range(1, 21))
-    runs = [6, 10]
 
-    auth.train(subjects, runs)
+    auth.train(subjects, TRAIN_RUNS)
 
 
 def authenticate(auth, user):
     '''
-    Authenticates a user with the Authenticator object.
+    Authenticates a user with the Authenticator object. Because we're pulling
+    data from the mne library, it's easier to get the data from the
+    Authenticator object.
+
+    Parameters:
+    auth (Authenticator): The authenticator object used to authenticate users
+    user (int): The ID number of the user being authenticated
+
+    Returns:
+    bool: Whether or not the user was successfully authenticated
     '''
+
+    _, data, _ = auth.get_user_data(user, AUTH_RUNS, dict(T0=user, T1=user, T2=user))
+    labels = auth.authenticate(user, data)
+
+    unique, counts = np.unique(labels, return_counts=True)
+    label_counts = dict(zip(unique, counts))
+
+    confidence = float(label_counts[user]) / float(len(labels))
+
+    if confidence >= 0.75:
+        return True
+    else:
+        return False
 
 
 def cleanup(auth, save_path):
@@ -76,6 +102,7 @@ def main():
     # Run the cleanup function to save the Authenticator object on exit
     atexit.register(cleanup, auth, save_path)
 
+
     # Create the unix socket
     try:
         os.unlink(sock_path)
@@ -102,6 +129,12 @@ def main():
 
                 if data:
                     message += data.decode('utf-8')
+                    
+                    if authenticate(auth, int(message)):
+                        conn.sendall(b'Authentication success')
+                    else:
+                        conn.sendall(b'Authentication failure')
+                    break
                 else:
                     break
         finally:
