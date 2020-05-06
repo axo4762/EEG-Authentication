@@ -13,6 +13,7 @@ from authenticator import Authenticator
 
 TRAIN_RUNS = [6, 10]
 AUTH_RUNS  = [14]
+NUM_SUBJECTS = 35
 
 
 def train_model(auth):
@@ -25,7 +26,7 @@ def train_model(auth):
     auth (Authenticator): The Authenticator object used for authenticating users
     '''
 
-    subjects = list(range(1, 21))
+    subjects = list(range(1, NUM_SUBJECTS + 1))
 
     auth.train(subjects, TRAIN_RUNS)
 
